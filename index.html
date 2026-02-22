@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="lv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Budžets</title>
+  <meta name="theme-color" content="#111827" />
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111827; --line:#233044; --text:#e5e7eb; --muted:#9ca3af;
+      --good:#22c55e; --bad:#ef4444; --warn:#f59e0b; --blue:#60a5fa;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    .wrap{max-width:860px;margin:0 auto;padding:18px}
+    h1{margin:6px 0 12px;font-size:24px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .col{flex:1;min-width:220px}
+    label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+    input, select{
+      width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);
+      background:#0b1220;color:var(--text);outline:none
+    }
+    input::placeholder{color:#6b7280}
+    button{
+      padding:12px 14px;border-radius:12px;border:0;cursor:pointer;font-weight:800;
+      background:var(--blue);color:#071322
+    }
+    button.secondary{background:#1f2937;color:var(--text);border:1px solid var(--line)}
+    button.good{background:var(--good);color:#052e16}
+    button.bad{background:var(--bad);color:#2b0a0a}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+    .tab{
+      padding:10px 12px;border-radius:999px;border:1px solid var(--line);
+      background:#0b1220;color:var(--text);cursor:pointer;font-weight:700
+    }
+    .tab.active{background:var(--blue);color:#071322;border-color:transparent}
+    .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .stat{background:#0b1220;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .stat .k{color:var(--muted);font-size:12px}
+    .stat .v{font-size:20px;font-weight:900;margin-top:4px}
+    .v.good{color:var(--good)} .v.bad{color:var(--bad)}
+    .list{margin-top:12px}
+    .item{
+      display:grid;grid-template-columns:92px 1fr 120px 40px;
+      gap:10px;align-items:center;
+      padding:10px;border-radius:14px;border:1px solid var(--line);background:#0b1220;
+      margin-top:8px
+    }
+    .date{color:var(--muted);font-size:12px}
+    .desc{font-weight:800}
+    .amt{font-weight:900;text-align:right}
+    .amt.good{color:var(--good)} .amt.bad{color:var(--bad)}
+    .trash{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#0b1220;color:var(--text);font-size:18px}
+    .footer{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.4}
+    .split{height:1px;background:var(--line);margin:12px 0}
+    @media (max-width:560px){
+      .stats{grid-template-columns:1fr}
+      .item{grid-template-columns:92px 1fr; grid-auto-rows:auto}
+      .amt{grid-column:1 / -1;text-align:left}
+      .trash{justify-self:end}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>💸 Budžets</h1>
+
+    <div class="card">
+      <div class="row">
+        <div class="col">
+          <label>Datums (kalendārs)</label>
+          <input id="date" type="date" />
+        </div>
+        <div class="col">
+          <label>Apraksts</label>
+          <input id="desc" type="text" placeholder="Piem.: Degviela, Alga, Pārtika..." />
+        </div>
+        <div class="col">
+          <label>Tips</label>
+          <select id="type">
+            <option value="expense">Izdevumi (-)</option>
+            <option value="income">Ienākumi (+)</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Summa (€)</label>
+          <input id="amount" type="number" inputmode="decimal" step="0.01" placeholder="0.00" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="add" class="good">Pievienot</button>
+        <button id="clearMonth" class="secondary">Dzēst šī mēneša ierakstus</button>
+        <button id="clearAll" class="bad">Dzēst visu</button>
+      </div>
+
+      <div class="footer">
+        Padoms: vari izmantot “Datums” lauku kā kalendāru. Mēnešu cilnes veidojas automātiski no taviem ierakstiem.
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div class="card">
+      <div class="stats">
+        <div class="stat">
+          <div class="k">Ienākumi</div>
+          <div class="v good" id="sumIncome">0.00 €</div>
+        </div>
+        <div class="stat">
+          <div class="k">Izdevumi</div>
+          <div class="v bad" id="sumExpense">0.00 €</div>
+        </div>
+        <div class="stat">
+          <div class="k">Bilance</div>
+          <div class="v" id="sumNet">0.00 €</div>
+        </div>
+      </div>
+
+      <div class="split"></div>
+
+      <div class="row" style="justify-content:space-between">
+        <div class="footer" id="monthLabel"></div>
+        <button id="export" class="secondary">Eksportēt</button>
+        <button id="import" class="secondary">Importēt</button>
+      </div>
+
+      <div class="list" id="list"></div>
+    </div>
+  </div>
+
+<script>
+  // ====== Storage ======
+  const KEY = "budget_entries_v1";
+  /** @type {{id:string, date:string, desc:string, type:'income'|'expense', amount:number}[]} */
+  let entries = [];
+
+  function load(){
+    try{
+      entries = JSON.parse(localStorage.getItem(KEY) || "[]") || [];
+      if(!Array.isArray(entries)) entries = [];
+    }catch{ entries = []; }
+  }
+  function save(){
+    localStorage.setItem(KEY, JSON.stringify(entries));
+  }
+
+  // ====== Helpers ======
+  const fmtMoney = (n) => (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2) + " €";
+
+  function monthKeyFromDate(isoDate){
+    // isoDate: YYYY-MM-DD
+    return isoDate?.slice(0,7) || currentMonthKey();
+  }
+  function currentMonthKey(){
+    const d = new Date();
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    return `${d.getFullYear()}-${mm}`;
+  }
+  function monthTitle(key){
+    const [y,m] = key.split("-");
+    const monthNames = ["Janvāris","Februāris","Marts","Aprīlis","Maijs","Jūnijs","Jūlijs","Augusts","Septembris","Oktobris","Novembris","Decembris"];
+    const idx = parseInt(m,10)-1;
+    return `${monthNames[idx] || m} ${y}`;
+  }
+
+  function getMonths(){
+    const set = new Set(entries.map(e => monthKeyFromDate(e.date)));
+    set.add(currentMonthKey());
+    const months = [...set].filter(Boolean).sort().reverse(); // newest first
+    return months;
+  }
+
+  // ====== UI refs ======
+  const $date = document.getElementById("date");
+  const $desc = document.getElementById("desc");
+  const $type = document.getElementById("type");
+  const $amount = document.getElementById("amount");
+  const $add = document.getElementById("add");
+  const $tabs = document.getElementById("tabs");
+  const $list = document.getElementById("list");
+  const $sumIncome = document.getElementById("sumIncome");
+  const $sumExpense = document.getElementById("sumExpense");
+  const $sumNet = document.getElementById("sumNet");
+  const $monthLabel = document.getElementById("monthLabel");
+  const $clearMonth = document.getElementById("clearMonth");
+  const $clearAll = document.getElementById("clearAll");
+  const $export = document.getElementById("export");
+  const $import = document.getElementById("import");
+
+  let selectedMonth = currentMonthKey();
+
+  // Default date: today
+  (function setToday(){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const dd = String(d.getDate()).padStart(2,"0");
+    $date.value = `${yyyy}-${mm}-${dd}`;
+  })();
+
+  function renderTabs(){
+    const months = getMonths();
+    // if selected month disappeared, fallback
+    if(!months.includes(selectedMonth)) selectedMonth = months[0] || currentMonthKey();
+
+    $tabs.innerHTML = "";
+    months.forEach(m => {
+      const b = document.createElement("button");
+      b.className = "tab" + (m === selectedMonth ? " active" : "");
+      b.textContent = (m === currentMonthKey() ? "• " : "") + monthTitle(m);
+      b.onclick = () => { selectedMonth = m; render(); };
+      $tabs.appendChild(b);
+    });
+  }
+
+  function renderList(){
+    const monthEntries = entries
+      .filter(e => monthKeyFromDate(e.date) === selectedMonth)
+      .sort((a,b) => (b.date.localeCompare(a.date)) || (b.id.localeCompare(a.id)));
+
+    $list.innerHTML = "";
+    if(monthEntries.length === 0){
+      const p = document.createElement("div");
+      p.className = "footer";
+      p.textContent = "Nav ierakstu šajā mēnesī. Pievieno pirmo darījumu augšā.";
+      $list.appendChild(p);
+      return;
+    }
+
+    monthEntries.forEach(e => {
+      const row = document.createElement("div");
+      row.className = "item";
+
+      const d = document.createElement("div");
+      d.className = "date";
+      d.textContent = e.date;
+
+      const desc = document.createElement("div");
+      desc.className = "desc";
+      desc.textContent = e.desc || (e.type === "income" ? "Ienākumi" : "Izdevumi");
+
+      const amt = document.createElement("div");
+      amt.className = "amt " + (e.type === "income" ? "good" : "bad");
+      const sign = e.type === "income" ? "+" : "-";
+      amt.textContent = `${sign}${fmtMoney(Math.abs(e.amount))}`;
+
+      const del = document.createElement("button");
+      del.className = "trash";
+      del.title = "Dzēst";
+      del.textContent = "🗑️";
+      del.onclick = () => {
+        entries = entries.filter(x => x.id !== e.id);
+        save();
+        render();
+      };
+
+      row.appendChild(d);
+      row.appendChild(desc);
+      row.appendChild(amt);
+      row.appendChild(del);
+      $list.appendChild(row);
+    });
+  }
+
+  function renderSums(){
+    const monthEntries = entries.filter(e => monthKeyFromDate(e.date) === selectedMonth);
+    const income = monthEntries.filter(e => e.type === "income").reduce((s,e)=>s+e.amount,0);
+    const expense = monthEntries.filter(e => e.type === "expense").reduce((s,e)=>s+e.amount,0);
+    const net = income - expense;
+
+    $sumIncome.textContent = fmtMoney(income);
+    $sumExpense.textContent = fmtMoney(expense);
+    $sumNet.textContent = fmtMoney(net);
+    $sumNet.className = "v " + (net >= 0 ? "good" : "bad");
+
+    $monthLabel.textContent = `Mēnesis: ${monthTitle(selectedMonth)} • Ieraksti: ${monthEntries.length}`;
+  }
+
+  function render(){
+    renderTabs();
+    renderSums();
+    renderList();
+  }
+
+  // ====== Actions ======
+  $add.onclick = () => {
+    const date = $date.value;
+    const desc = ($desc.value || "").trim();
+    const type = $type.value;
+    const amountRaw = parseFloat($amount.value);
+
+    if(!date){
+      alert("Izvēlies datumu (kalendārā).");
+      return;
+    }
+    if(!Number.isFinite(amountRaw) || amountRaw <= 0){
+      alert("Ievadi summu (pozitīvu skaitli).");
+      return;
+    }
+
+    const entry = {
+      id: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
+      date,
+      desc,
+      type,
+      amount: Math.round(amountRaw * 100) / 100
+    };
+
+    entries.push(entry);
+    save();
+
+    // auto switch to entry month
+    selectedMonth = monthKeyFromDate(date);
+
+    // reset fields (keep date)
+    $desc.value = "";
+    $amount.value = "";
+    render();
+  };
+
+  $clearMonth.onclick = () => {
+    const m = selectedMonth;
+    if(!confirm(`Dzēst VISUS ierakstus mēnesī: ${monthTitle(m)}?`)) return;
+    entries = entries.filter(e => monthKeyFromDate(e.date) !== m);
+    save();
+    render();
+  };
+
+  $clearAll.onclick = () => {
+    if(!confirm("Dzēst VISUS ierakstus visos mēnešos?")) return;
+    entries = [];
+    save();
+    selectedMonth = currentMonthKey();
+    render();
+  };
+
+  $export.onclick = async () => {
+    const data = JSON.stringify({ exportedAt: new Date().toISOString(), entries }, null, 2);
+    try{
+      await navigator.clipboard.writeText(data);
+      alert("Eksports nokopēts starpliktuvē (clipboard). Ielīmē un saglabā, piemēram, Notes.");
+    }catch{
+      // fallback
+      prompt("Nokopē šo tekstu:", data);
+    }
+  };
+
+  $import.onclick = () => {
+    const txt = prompt("Ielīmē eksportēto tekstu (JSON):");
+    if(!txt) return;
+    try{
+      const obj = JSON.parse(txt);
+      const arr = Array.isArray(obj) ? obj : obj.entries;
+      if(!Array.isArray(arr)) throw new Error("Nav entries masīvs");
+      // basic sanitize
+      const cleaned = arr
+        .filter(e => e && typeof e.date === "string" && (e.type === "income" || e.type === "expense"))
+        .map(e => ({
+          id: String(e.id || (Date.now()+Math.random())),
+          date: e.date.slice(0,10),
+          desc: String(e.desc || ""),
+          type: e.type,
+          amount: Math.round((Number(e.amount) || 0) * 100) / 100
+        }))
+        .filter(e => e.amount > 0);
+
+      if(cleaned.length === 0){
+        alert("Importā nav derīgu ierakstu.");
+        return;
+      }
+      entries = cleaned;
+      save();
+      selectedMonth = currentMonthKey();
+      render();
+      alert("Importēts!");
+    }catch(err){
+      alert("Neizdevās importēt. Pārliecinies, ka ielīmēts pareizs JSON.");
+    }
+  };
+
+  // ====== Init ======
+  load();
+  render();
+</script>
+</body>
+  </html>
